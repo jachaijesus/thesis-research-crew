@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import time
 from datetime import datetime
 import urllib.error
 import urllib.parse
@@ -128,13 +129,40 @@ class ResearchPipeline:
             },
         )
 
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                data = json.loads(response.read().decode("utf-8"))
-        except (urllib.error.URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as error:
-            raise RuntimeError(
-                f"[Golem]: Failed to retrieve Semantic Scholar results: {error}"
-            ) from error
+        for attempt in range(3):
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    data = json.loads(response.read().decode("utf-8"))
+                break
+            except urllib.error.HTTPError as error:
+                if error.code == 429 and attempt < 2:
+                    retry_after = error.headers.get("Retry-After") if error.headers else None
+                    try:
+                        wait_time = min(max(float(retry_after), 0), 30)
+                    except (TypeError, ValueError):
+                        wait_time = 2 ** attempt
+                    print(
+                        f"⏳ [Golem]: Semantic Scholar rate limit reached. "
+                        f"Retrying in {wait_time:g}s (attempt {attempt + 2}/3)..."
+                    )
+                    time.sleep(wait_time)
+                    continue
+                if error.code == 429:
+                    raise RuntimeError(
+                        "[Golem]: Semantic Scholar rate limit persisted after 3 attempts."
+                    ) from error
+                raise RuntimeError(
+                    f"[Golem]: Semantic Scholar returned HTTP {error.code}: {error.reason}"
+                ) from error
+            except (
+                urllib.error.URLError,
+                TimeoutError,
+                UnicodeDecodeError,
+                json.JSONDecodeError,
+            ) as error:
+                raise RuntimeError(
+                    f"[Golem]: Failed to retrieve Semantic Scholar results: {error}"
+                ) from error
 
         if not isinstance(data, dict) or not isinstance(data.get("data"), list):
             raise RuntimeError(

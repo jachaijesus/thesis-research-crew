@@ -12,7 +12,7 @@ Meet the Crew
 
 The pipeline divides labor across three named agents, each with a distinct task and identity:
 
-• Golem (The Sourcing Agent): Queries the public arXiv API for up to five papers and Semantic Scholar for up to three papers matching the project topic, then merges duplicate titles into the seven-field source manifest. Results are marked “Needs Check” for human verification. If one API fails, results from the other are still available; if both fail, the pipeline reports an error instead of substituting mock sources. The active Python interpreter must have a configured CA trust store for HTTPS verification.
+• Golem (The Sourcing Agent): Queries the public arXiv API for up to five papers and Semantic Scholar for up to three papers matching the project topic, then merges duplicate titles into the seven-field source manifest. Semantic Scholar rate-limit responses are retried up to two times with bounded backoff. Results are marked “Needs Check” for human verification. If one API fails, results from the other are still available; if both fail, the pipeline reports an error instead of substituting mock sources. The active Python interpreter must have a configured CA trust store for HTTPS verification.
 
 • FaFo (The Curation Agent): The critical, experiential filter. FaFo handles the human-in-the-loop validation, formatting the raw assets dynamically into a terminal interface and forcing user verification before anything proceeds to your permanent vault.
 
